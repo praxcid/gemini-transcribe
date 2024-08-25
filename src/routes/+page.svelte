@@ -6,6 +6,22 @@
 	let uploadComplete = false;
 	let audioUrl: string | null = null;
 
+	let buffer = '';
+	let transcriptArray: Array<{ timestamp: string; speaker: string; text: string }> = [];
+
+	// $: paragraphs = transcript.split('\n\n');
+
+	// function splitParagraph(paragraph) {
+	// 	const match = paragraph.match(/^(## \[.*?\])(.*)$/s);
+	// 	if (match) {
+	// 		return {
+	// 			timestamp: match[1].trim(),
+	// 			content: match[2].trim()
+	// 		};
+	// 	}
+	// 	return { content: paragraph.trim() };
+	// }
+
 	function handleFileInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		selectedFile = target.files?.[0] ?? null;
@@ -20,18 +36,30 @@
 		const formData = new FormData();
 		formData.append('file', selectedFile);
 
-		try {
-			const response = await fetch('/api/upload', {
-				method: 'POST',
-				body: formData
-			});
+		const response = await fetch('/api/upload', {
+			method: 'POST',
+			body: formData,
+			headers: {
+				Connection: 'keep-alive'
+			}
+		});
 
-			const data = await response.json();
-			console.log(data);
+		const reader = response.body?.getReader();
+		const decoder = new TextDecoder();
 
-			uploadComplete = true;
-		} catch (error) {
-			console.error('Error uploading file:', error);
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			buffer += decoder.decode(value, { stream: true });
+
+			try {
+				const jsonChunk = JSON.parse(buffer.trim());
+				transcriptArray = [...transcriptArray, ...jsonChunk];
+				buffer = '';
+			} catch (error) {
+				// console.error('Error parsing JSON:', error);
+			}
 		}
 	}
 </script>
@@ -49,4 +77,41 @@
 			>Upload File</button
 		>
 	{/if}
+	<p>Buffer: {buffer}</p>
+
+	<!-- TODO: format transcript array nicely -->
+	<p>{JSON.stringify(transcriptArray)}</p>
+
+	<!-- <div class="transcript">
+		{#each transcript as entry}
+			<div class="entry">
+				<span class="timestamp">{entry.timestamp}</span>
+				<span class="speaker">{entry.speaker}:</span>
+				<span class="text">{entry.text}</span>
+			</div>
+		{/each}
+	</div> -->
 </main>
+
+<style>
+	.transcript {
+		font-family: Arial, sans-serif;
+		max-width: 800px;
+		margin: 0 auto;
+	}
+	.entry {
+		margin-bottom: 10px;
+	}
+	.timestamp {
+		color: #888;
+		font-size: 0.8em;
+		margin-right: 10px;
+	}
+	.speaker {
+		font-weight: bold;
+		margin-right: 5px;
+	}
+	.text {
+		line-height: 1.4;
+	}
+</style>
