@@ -84,20 +84,49 @@
 			buffer += decoder.decode(value, { stream: true });
 		}
 	}
+
+	async function downloadTranscript() {
+		const response = await fetch('/api/download', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ transcript: transcriptArray })
+		});
+
+		const blob = await response.blob();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'transcript.txt';
+		a.click();
+	}
 </script>
 
-<main class="mx-auto my-8 grid w-full max-w-lg items-center gap-1.5">
-	<h1 class="my-2 text-center text-3xl font-bold">Gemini Transcribe</h1>
+<svelte:head>
+	<title>Gemini Transcribe</title>
+</svelte:head>
 
+<h1 class="my-2 text-center text-3xl font-bold">Gemini Transcribe</h1>
+<main class="mx-auto my-8 grid w-full max-w-lg items-center gap-1.5">
 	{#if uploadComplete}
 		<div class="mx-auto my-8 grid w-full max-w-sm items-center gap-1.5">
 			<audio src={audioUrl} controls class="mx-auto" bind:this={audioElement} />
 		</div>
+
+		<button
+			on:click={downloadTranscript}
+			class="mt-4 rounded bg-green-500 px-4 py-2 text-white shadow-md transition duration-300 ease-in-out hover:bg-green-700"
+		>
+			Download transcript
+		</button>
 	{:else}
-		<Label for="audio-file">Audio file</Label>
-		<Input type="file" on:input={handleFileInput} id="audio-file" />
-		<button on:click={handleSubmit} class="mt-4 rounded bg-blue-500 px-4 py-2 text-white"
-			>Upload File</button
+		<Label for="audio-file">Audio or video file</Label>
+		<Input type="file" on:input={handleFileInput} id="audio-file" accept="audio/*,video/*" />
+		<button
+			on:click={handleSubmit}
+			class="mt-4 rounded bg-blue-500 px-4 py-2 text-white disabled:cursor-not-allowed disabled:bg-gray-400"
+			disabled={!selectedFile}>Upload File</button
 		>
 	{/if}
 
