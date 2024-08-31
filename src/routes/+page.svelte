@@ -9,18 +9,23 @@
 	let buffer = '';
 	let transcriptArray: Array<{ timestamp: string; speaker: string; text: string }> = [];
 
-	// $: paragraphs = transcript.split('\n\n');
+	let audioElement: HTMLAudioElement | null = null;
 
-	// function splitParagraph(paragraph) {
-	// 	const match = paragraph.match(/^(## \[.*?\])(.*)$/s);
-	// 	if (match) {
-	// 		return {
-	// 			timestamp: match[1].trim(),
-	// 			content: match[2].trim()
-	// 		};
-	// 	}
-	// 	return { content: paragraph.trim() };
-	// }
+	$: if (buffer) {
+		window.scrollTo({
+			top: document.body.scrollHeight + 50,
+			behavior: 'smooth'
+		});
+	}
+
+	function handleTimestampClick(timestamp: string) {
+		if (audioElement) {
+			const [minutes, seconds] = timestamp.split(':').map(Number);
+			const timeInSeconds = minutes * 60 + seconds;
+			audioElement.currentTime = timeInSeconds;
+			audioElement.play();
+		}
+	}
 
 	function handleFileInput(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -32,6 +37,19 @@
 
 	async function handleSubmit() {
 		if (!selectedFile) return;
+
+		// For debugging purposes
+		if (buffer) {
+			try {
+				const jsonChunk = JSON.parse(buffer);
+				transcriptArray = [...jsonChunk];
+				buffer = '';
+				uploadComplete = true;
+				return;
+			} catch (error) {
+				console.error('Error parsing JSON:', error);
+			}
+		}
 
 		const formData = new FormData();
 		formData.append('file', selectedFile);
@@ -49,26 +67,31 @@
 
 		while (true) {
 			const { done, value } = await reader.read();
-			if (done) break;
+
+			if (done) {
+				try {
+					const jsonChunk = JSON.parse(buffer);
+					transcriptArray = [...jsonChunk];
+					buffer = '';
+					uploadComplete = true;
+				} catch (error) {
+					console.error('Error parsing JSON:', error);
+				}
+
+				break;
+			}
 
 			buffer += decoder.decode(value, { stream: true });
-
-			try {
-				const jsonChunk = JSON.parse(buffer.trim());
-				transcriptArray = [...transcriptArray, ...jsonChunk];
-				buffer = '';
-			} catch (error) {
-				// console.error('Error parsing JSON:', error);
-			}
 		}
 	}
 </script>
 
-<h1 class="my-2 text-center text-3xl font-bold">Transcribe</h1>
-<main class="mx-auto my-8 grid w-full max-w-sm items-center gap-1.5">
+<main class="mx-auto my-8 grid w-full max-w-lg items-center gap-1.5">
+	<h1 class="my-2 text-center text-3xl font-bold">Gemini Transcribe</h1>
+
 	{#if uploadComplete}
 		<div class="mx-auto my-8 grid w-full max-w-sm items-center gap-1.5">
-			<audio src={audioUrl} controls class="mx-auto" />
+			<audio src={audioUrl} controls class="mx-auto" bind:this={audioElement} />
 		</div>
 	{:else}
 		<Label for="audio-file">Audio file</Label>
@@ -77,41 +100,23 @@
 			>Upload File</button
 		>
 	{/if}
-	<p>Buffer: {buffer}</p>
 
-	<!-- TODO: format transcript array nicely -->
-	<p>{JSON.stringify(transcriptArray)}</p>
+	<div class="mb-2">
+		{buffer}
+	</div>
 
-	<!-- <div class="transcript">
-		{#each transcript as entry}
-			<div class="entry">
-				<span class="timestamp">{entry.timestamp}</span>
-				<span class="speaker">{entry.speaker}:</span>
-				<span class="text">{entry.text}</span>
+	<div class="transcript">
+		{#each transcriptArray as entry}
+			<div class="mb-3">
+				<button
+					class="rounded bg-blue-500 px-3 py-1 text-sm font-bold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-700"
+					on:click={() => handleTimestampClick(entry.timestamp)}
+				>
+					{entry.timestamp}
+				</button>
+				<span class="mr-1 font-bold">{entry.speaker}:</span>
+				<span class="text leading-3">{entry.text}</span>
 			</div>
 		{/each}
-	</div> -->
+	</div>
 </main>
-
-<style>
-	.transcript {
-		font-family: Arial, sans-serif;
-		max-width: 800px;
-		margin: 0 auto;
-	}
-	.entry {
-		margin-bottom: 10px;
-	}
-	.timestamp {
-		color: #888;
-		font-size: 0.8em;
-		margin-right: 10px;
-	}
-	.speaker {
-		font-weight: bold;
-		margin-right: 5px;
-	}
-	.text {
-		line-height: 1.4;
-	}
-</style>
