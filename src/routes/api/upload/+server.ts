@@ -1,13 +1,11 @@
-import { json } from '@sveltejs/kit';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GoogleAIFileManager } from '@google/generative-ai/server';
+import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
 import { file as tempFile } from 'tmp-promise';
 import { writeFile } from 'fs/promises';
 import { GOOGLE_API_KEY } from '$env/static/private';
 
 async function* streamChunks(stream: ReadableStream<Uint8Array>) {
 	for await (const chunk of stream) {
-		console.log(chunk.text());
 		yield chunk.text();
 	}
 }
@@ -16,24 +14,18 @@ export async function POST({ request }) {
 	const formData = await request.formData();
 	const file = formData.get('file');
 
-	// Check file is .wav or .mp3. If not, return error.
-
-	if (!file.name.endsWith('.wav') && !file.name.endsWith('.mp3')) {
-		return new Response('File must be .wav or .mp3', { status: 400 });
-	}
-
 	let tempFileHandle;
-	let audioFile;
+	let uploadResult;
 
-	// Upload audio file
+	const fileManager = new GoogleAIFileManager(GOOGLE_API_KEY);
+
+	// Upload file
 	// try {
 	// 	tempFileHandle = await tempFile({ postfix: `.${file.name.split('.').pop()}` });
 
 	// 	const arrayBuffer = await file.arrayBuffer();
 	// 	await writeFile(tempFileHandle.path, Buffer.from(arrayBuffer));
-
-	// 	const fileManager = new GoogleAIFileManager(GOOGLE_API_KEY);
-	// 	audioFile = await fileManager.uploadFile(tempFileHandle.path, {
+	// 	uploadResult = await fileManager.uploadFile(tempFileHandle.path, {
 	// 		mimeType: file.type
 	// 	});
 	// } catch (error) {
@@ -45,10 +37,9 @@ export async function POST({ request }) {
 	// 	}
 	// }
 
-	// console.log(audioFile);
+	// console.log(uploadResult);
 
 	// Generate transcript
-
 	const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
 
 	const model = genAI.getGenerativeModel({
@@ -56,24 +47,32 @@ export async function POST({ request }) {
 		generationConfig: { responseMimeType: 'application/json' }
 	});
 
+	// Check that the file has been processed
+	// let uploadedFile = await fileManager.getFile(uploadResult.file.name);
+
+	// while (uploadedFile.state === FileState.PROCESSING) {
+	// 	console.log('File is processing...');
+	// 	await new Promise((resolve) => setTimeout(resolve, 5000));
+	// 	uploadedFile = await fileManager.getFile(uploadResult.file.name);
+	// }
+
+	// if (uploadedFile.state === FileState.FAILED) {
+	// 	return new Response('Error processing file', { status: 500 });
+	// }
+
 	const result = await model.generateContentStream([
 		{
 			fileData: {
 				mimeType: file.type,
-				// fileUri: audioFile.file.uri
-				fileUri: 'https://generativelanguage.googleapis.com/v1beta/files/wc4623it7ab7'
+				// fileUri: uploadResult.file.uri
+				fileUri: 'https://generativelanguage.googleapis.com/v1beta/files/f37t0wnzuvds'
 			}
 		},
 		{
 			text: `Generate a transcript for this audio presentation in 1 minute blocks using this JSON schema: 
-     [{"timestamp": "00:00:00", "speaker": "Speaker 1", "text": "Hello, world!"},{"timestamp": "00:01:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."}]`
+     [{"timestamp": "00:00:00", "speaker": "Speaker 1", "text": "Hello!"},{"timestamp": "00:01:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."}]`
 		}
 	]);
-
-	// console.log(result.response);
-	// console.log('text: ', result.response.text());
-
-	// return json({ message: 'Success' });
 
 	return new Response(streamChunks(result.stream), {
 		headers: {
@@ -82,6 +81,4 @@ export async function POST({ request }) {
 			'X-Content-Type-Options': 'nosniff'
 		}
 	});
-
-	return json({ message: `File uploaded: ${file.name}` });
 }

@@ -4,12 +4,14 @@
 
 	let selectedFile: File | null = null;
 	let uploadComplete = false;
-	let audioUrl: string | null = null;
+	let fileUrl: string | null = null;
+	let fileType: 'audio' | 'video';
 
 	let buffer = '';
 	let transcriptArray: Array<{ timestamp: string; speaker: string; text: string }> = [];
 
 	let audioElement: HTMLAudioElement | null = null;
+	let videoElement: HTMLVideoElement | null = null;
 
 	$: if (buffer) {
 		window.scrollTo({
@@ -19,11 +21,17 @@
 	}
 
 	function handleTimestampClick(timestamp: string) {
+		const [minutes, seconds] = timestamp.split(':').map(Number);
+		const timeInSeconds = minutes * 60 + seconds;
+
 		if (audioElement) {
-			const [minutes, seconds] = timestamp.split(':').map(Number);
-			const timeInSeconds = minutes * 60 + seconds;
 			audioElement.currentTime = timeInSeconds;
 			audioElement.play();
+		}
+
+		if (videoElement) {
+			videoElement.currentTime = timeInSeconds;
+			videoElement.play();
 		}
 	}
 
@@ -31,7 +39,8 @@
 		const target = event.target as HTMLInputElement;
 		selectedFile = target.files?.[0] ?? null;
 		if (selectedFile) {
-			audioUrl = URL.createObjectURL(selectedFile);
+			fileUrl = URL.createObjectURL(selectedFile);
+			fileType = selectedFile.type.includes('audio') ? 'audio' : 'video';
 		}
 	}
 
@@ -111,7 +120,11 @@
 <main class="mx-auto my-8 grid w-full max-w-lg items-center gap-1.5">
 	{#if uploadComplete}
 		<div class="mx-auto my-8 grid w-full max-w-sm items-center gap-1.5">
-			<audio src={audioUrl} controls class="mx-auto" bind:this={audioElement} />
+			{#if fileType === 'audio'}
+				<audio src={fileUrl} controls class="mx-auto" bind:this={audioElement} />
+			{:else if fileType === 'video'}
+				<video src={fileUrl} controls class="mx-auto" bind:this={videoElement} />
+			{/if}
 		</div>
 
 		<button
