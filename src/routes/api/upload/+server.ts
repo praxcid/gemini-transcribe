@@ -69,8 +69,8 @@ export async function POST({ request }) {
 			}
 		},
 		{
-			text: `Generate a transcript for this audio presentation in 1 minute blocks using this JSON schema: 
-     [{"timestamp": "00:00:00", "speaker": "Speaker 1", "text": "Hello!"},{"timestamp": "00:01:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."}]`
+			text: `Generate a transcript for this file. Always use the format mm:ss for the time. Respond with the transcript in the form of this JSON schema: 
+     [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Has AI has revolutionized the way we live and work?"}]`
 		}
 	]);
 
