@@ -47,7 +47,21 @@
 	async function handleSubmit() {
 		if (!selectedFile) return;
 
-		// For debugging purposes
+		// Only allow files that are less than 1 hour in length
+		const tempMediaElement = document.createElement(fileType === 'audio' ? 'audio' : 'video');
+		tempMediaElement.src = fileUrl;
+
+		const duration = await new Promise((resolve, reject) => {
+			tempMediaElement.onloadedmetadata = () => resolve(tempMediaElement.duration);
+			tempMediaElement.onerror = reject;
+		});
+
+		if (duration >= 3600) {
+			alert('This file is too long. Please select a file that is less than 1 hour in length.');
+			return;
+		}
+
+		// TODO: For debugging purposes
 		if (buffer) {
 			try {
 				const jsonChunk = JSON.parse(buffer);
