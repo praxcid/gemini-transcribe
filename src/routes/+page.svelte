@@ -134,52 +134,82 @@
 	<title>Gemini Transcribe</title>
 </svelte:head>
 
-<h1 class="my-2 text-center text-3xl font-bold">Gemini Transcribe</h1>
-<main class="mx-auto my-8 grid w-full max-w-lg items-center gap-1.5 p-4 md:p-0">
-	{#if uploadComplete}
-		<div class="mx-auto my-6 grid w-full max-w-sm items-center gap-1.5">
-			{#if fileType === 'audio'}
-				<audio src={fileUrl} controls class="mx-auto" bind:this={audioElement} />
-			{:else if fileType === 'video'}
-				<video src={fileUrl} controls class="mx-auto" bind:this={videoElement} />
-			{/if}
+<main class="container mx-auto px-4 py-8">
+	<section class="mb-12 text-center">
+		<h1 class="mb-4 text-4xl font-bold text-blue-600">Gemini Transcribe</h1>
+		<p class="text-xl text-gray-600">
+			Transcribe audio and video files with speaker diarization and logically grouped timestamps.
+		</p>
+	</section>
+
+	<div class="mx-auto max-w-2xl">
+		{#if uploadComplete}
+			<div class="mb-6">
+				{#if fileType === 'audio'}
+					<audio src={fileUrl} controls class="mx-auto w-full" bind:this={audioElement} />
+				{:else if fileType === 'video'}
+					<video src={fileUrl} controls class="mx-auto w-full" bind:this={videoElement} />
+				{/if}
+			</div>
+
+			<button
+				on:click={downloadTranscript}
+				class="w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+			>
+				Download Transcript
+			</button>
+		{:else}
+			<div class="mb-8 rounded-lg bg-white p-6 shadow-md">
+				<h2 class="mb-4 text-2xl font-semibold">Upload Your File</h2>
+				<Label for="audio-file" class="mb-2 block text-sm font-medium text-gray-700"
+					>Select an audio or video file</Label
+				>
+				<Input
+					type="file"
+					on:input={handleFileInput}
+					id="audio-file"
+					accept="audio/*,video/*"
+					class="mb-4 w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+				/>
+				<button
+					on:click={handleSubmit}
+					class="mb-4 w-full rounded-lg bg-blue-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+					disabled={!selectedFile || isUploading}
+				>
+					{isUploading ? 'Processing...' : 'Upload File'}
+				</button>
+
+				<p class=" space-y-2 text-sm text-gray-700">
+					Transcribe mp3, wav, mp4, avi & more. File size limit of 1GB. This app is using an
+					experimental version of Google's Gemini Flash model. If processing fails, please try
+					again.
+				</p>
+
+				{#if isUploading}
+					<p class="mt-2 text-sm font-bold text-gray-600">
+						Processing file - this may take a few minutes.
+					</p>
+				{/if}
+			</div>
+		{/if}
+
+		<div class="mb-2">
+			{buffer}
 		</div>
 
-		<button
-			on:click={downloadTranscript}
-			class="mt-2 rounded bg-green-500 px-4 py-2 text-white shadow-md transition duration-300 ease-in-out hover:bg-green-700"
-		>
-			Download transcript
-		</button>
-	{:else}
-		<Label for="audio-file">Audio or video file</Label>
-		<Input type="file" on:input={handleFileInput} id="audio-file" accept="audio/*,video/*" />
-		<button
-			on:click={handleSubmit}
-			class="mt-4 rounded bg-blue-500 px-4 py-2 text-white disabled:cursor-not-allowed disabled:bg-gray-400"
-			disabled={!selectedFile || isUploading}>Upload File</button
-		>
-		{#if isUploading}
-			<p>Processing file - this may take a few minutes.</p>
-		{/if}
-	{/if}
-
-	<div class="mb-2">
-		{buffer}
-	</div>
-
-	<div class="transcript">
-		{#each transcriptArray as entry}
-			<div class="mb-3">
-				<button
-					class="rounded bg-blue-500 px-3 py-1 text-sm font-bold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-700"
-					on:click={() => handleTimestampClick(entry.timestamp)}
-				>
-					{entry.timestamp}
-				</button>
-				<span class="mr-1 font-bold">{entry.speaker}:</span>
-				<span class="text leading-3">{entry.text}</span>
-			</div>
-		{/each}
+		<div class="transcript mt-8">
+			{#each transcriptArray as entry, index}
+				<div class="mb-4 rounded-lg {index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} p-4 shadow-sm">
+					<button
+						class="mb-2 block rounded-full bg-blue-500 px-3 py-1 text-sm font-bold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+						on:click={() => handleTimestampClick(entry.timestamp)}
+					>
+						{entry.timestamp}
+					</button>
+					<span class="font-bold text-gray-700">{entry.speaker}:</span>
+					<span class="text-gray-800">{entry.text}</span>
+				</div>
+			{/each}
+		</div>
 	</div>
 </main>
