@@ -66,19 +66,6 @@
 			return;
 		}
 
-		// TODO: For debugging purposes
-		if (buffer) {
-			try {
-				const jsonChunk = JSON.parse(buffer);
-				transcriptArray = [...jsonChunk];
-				buffer = '';
-				uploadComplete = true;
-				return;
-			} catch (error) {
-				console.error('Error parsing JSON:', error);
-			}
-		}
-
 		isUploading = true;
 
 		const formData = new FormData();
@@ -132,6 +119,15 @@
 		a.download = 'transcript.txt';
 		a.click();
 	}
+
+	async function useSample() {
+		const sampleFile = await fetch('/gettysburg-address.mp3');
+		const blob = await sampleFile.blob();
+		selectedFile = new File([blob], 'sample.mp3', { type: 'audio/mp3' });
+		fileUrl = URL.createObjectURL(selectedFile);
+		fileType = 'audio';
+		handleSubmit();
+	}
 </script>
 
 <svelte:head>
@@ -183,7 +179,7 @@
 					{isUploading ? 'Processing...' : 'Upload File'}
 				</button>
 
-				<p class=" space-y-2 text-sm text-gray-700">
+				<p class="space-y-2 text-sm text-gray-700">
 					Transcribe mp3, wav, mp4, avi & more. Duration limit of 1 hour per file. This app uses an
 					experimental model. If processing fails, please try again.
 				</p>
@@ -192,6 +188,13 @@
 					<p class="mt-2 text-sm font-bold text-gray-600">
 						Processing file - this may take a few minutes.
 					</p>
+				{:else}
+					<button
+						on:click={useSample}
+						class="mt-4 text-sm text-gray-600 underline hover:text-gray-800 focus:outline-none"
+					>
+						Try transcribing a sample file
+					</button>
 				{/if}
 			</div>
 		{/if}
