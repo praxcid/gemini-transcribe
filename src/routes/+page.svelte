@@ -21,6 +21,10 @@
 		});
 	}
 
+	$: if (transcriptArray.length) {
+		window.scrollTo(0, 0);
+	}
+
 	function handleTimestampClick(timestamp: string) {
 		const [minutes, seconds] = timestamp.split(':').map(Number);
 		const timeInSeconds = minutes * 60 + seconds;
@@ -180,9 +184,8 @@
 				</button>
 
 				<p class=" space-y-2 text-sm text-gray-700">
-					Transcribe mp3, wav, mp4, avi & more. File size limit of 1GB. This app is using an
-					experimental version of Google's Gemini Flash model. If processing fails, please try
-					again.
+					Transcribe mp3, wav, mp4, avi & more. File size limit of 1GB. This app uses an
+					experimental model. If processing fails, please try again.
 				</p>
 
 				{#if isUploading}
