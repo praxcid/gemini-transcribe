@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
 import { file as tempFile } from 'tmp-promise';
 import { writeFile } from 'fs/promises';
-import { GOOGLE_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 async function* streamChunks(stream: ReadableStream<Uint8Array>) {
 	for await (const chunk of stream) {
@@ -17,7 +17,7 @@ export async function POST({ request }) {
 	let tempFileHandle;
 	let uploadResult;
 
-	const fileManager = new GoogleAIFileManager(GOOGLE_API_KEY);
+	const fileManager = new GoogleAIFileManager(env.GOOGLE_API_KEY);
 
 	// Upload file
 	try {
@@ -40,7 +40,7 @@ export async function POST({ request }) {
 	console.log(uploadResult);
 
 	// Generate transcript
-	const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
+	const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
 
 	const model = genAI.getGenerativeModel({
 		model: 'gemini-1.5-flash-exp-0827',
