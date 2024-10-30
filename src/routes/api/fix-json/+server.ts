@@ -4,7 +4,7 @@ import { json } from '@sveltejs/kit';
 import { safetySettings } from '$lib/index';
 
 export async function POST({ request }) {
-	const { buffer } = await request.json();
+	const buffer = await request.text();
 
 	const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
 

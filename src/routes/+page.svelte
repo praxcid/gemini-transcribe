@@ -98,8 +98,8 @@
 					} catch (error) {
 						const response = await fetch('/api/fix-json', {
 							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ buffer: streamBuffer })
+							headers: { 'Content-Type': 'text/plain' },
+							body: streamBuffer
 						});
 						parsedData = (await response.json()).formattedJSON;
 					}
