@@ -2,4 +2,13 @@
 
 [https://gemini-transcribe.fly.dev/](https://gemini-transcribe.fly.dev/)
 
-A web application for transcribing audio and video files using Google's Gemini Flash model. I find Flash interesting because of its multimodality. Unlike Whisper and friends, with Gemini Flash you can prompt for the desired transcription output as it also understands text. It also has built in speaker diarization, and can understand context in way that that a traditional speech-to-text system cannot. I have seen examples of it being used for things like detecting silence, tone, sentiment and sound effects.
+A web application for transcribing audio and video files using Google's Gemini Flash model.
+
+Flash is a very interesting model to explore for audio transcription because:
+
+- We can prompt for specific transcription outputs, as it processes both audio and text inputs
+- It has built-in speaker diarization
+- It can attempt to detect not only words but also silence, sentiment, and sounds beyond human voices
+- It can translate the transcription, in particular to languages other than English
+
+Google claims Flash's word error rate is 9.6% in the FLEURS benchmark (September, 2024).
