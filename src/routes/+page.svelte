@@ -8,13 +8,13 @@
 	let fileUrl: string | null = null;
 	let fileType: 'audio' | 'video';
 
-	let buffer = '';
+	let streamBuffer = '';
 	let transcriptArray: Array<{ timestamp: string; speaker: string; text: string }> = [];
 
 	let audioElement: HTMLAudioElement | null = null;
 	let videoElement: HTMLVideoElement | null = null;
 
-	$: if (buffer) {
+	$: if (streamBuffer) {
 		window.scrollTo({
 			top: document.body.scrollHeight + 50,
 			behavior: 'smooth'
@@ -80,26 +80,41 @@
 		});
 
 		const reader = response.body?.getReader();
+		if (!reader) {
+			throw new Error('Response body is missing');
+		}
+
 		const decoder = new TextDecoder();
 
-		while (true) {
-			const { done, value } = await reader.read();
+		try {
+			while (true) {
+				const { done, value } = await reader.read();
 
-			if (done) {
-				try {
-					const jsonChunk = JSON.parse(buffer);
-					transcriptArray = [...jsonChunk];
-					buffer = '';
+				if (done) {
+					let parsedData;
+
+					try {
+						parsedData = JSON.parse(streamBuffer);
+					} catch (error) {
+						const response = await fetch('/api/fix-json', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ buffer: streamBuffer })
+						});
+						parsedData = (await response.json()).formattedJSON;
+					}
+
+					transcriptArray = [...parsedData];
+					streamBuffer = '';
 					uploadComplete = true;
 					isUploading = false;
-				} catch (error) {
-					console.error('Error parsing JSON:', error);
+					break;
 				}
 
-				break;
+				streamBuffer += decoder.decode(value, { stream: true });
 			}
-
-			buffer += decoder.decode(value, { stream: true });
+		} finally {
+			reader.cancel();
 		}
 	}
 
@@ -200,7 +215,7 @@
 		{/if}
 
 		<div class="mb-2">
-			{buffer}
+			{streamBuffer}
 		</div>
 
 		<div class="transcript mt-8">

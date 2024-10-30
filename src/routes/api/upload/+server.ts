@@ -1,8 +1,9 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
 import { file as tempFile } from 'tmp-promise';
 import { writeFile } from 'fs/promises';
 import { env } from '$env/dynamic/private';
+import { safetySettings } from '$lib/index';
 
 async function* streamChunks(stream: ReadableStream<Uint8Array>) {
 	for await (const chunk of stream) {
@@ -42,25 +43,6 @@ export async function POST({ request }) {
 	// Generate transcript
 	const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
 
-	const safetySettings = [
-		{
-			category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-			threshold: HarmBlockThreshold.BLOCK_NONE
-		},
-		{
-			category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-			threshold: HarmBlockThreshold.BLOCK_NONE
-		},
-		{
-			category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-			threshold: HarmBlockThreshold.BLOCK_NONE
-		},
-		{
-			category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-			threshold: HarmBlockThreshold.BLOCK_NONE
-		}
-	];
-
 	const model = genAI.getGenerativeModel({
 		model: 'gemini-1.5-flash-exp-0827',
 		safetySettings,
@@ -85,7 +67,6 @@ export async function POST({ request }) {
 			fileData: {
 				mimeType: file.type,
 				fileUri: uploadResult.file.uri
-				// fileUri: 'https://generativelanguage.googleapis.com/v1beta/files/wbdi2xn3v0bp'
 			}
 		},
 		{
