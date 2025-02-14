@@ -149,94 +149,106 @@
 	<title>Gemini Transcribe</title>
 </svelte:head>
 
-<main class="container mx-auto px-4 py-8">
-	<section class="mb-12 text-center">
-		<h1 class="mb-4 text-4xl font-bold text-blue-600">Gemini Transcribe</h1>
-		<p class="text-xl text-gray-600">
-			Transcribe audio and video files with speaker diarization and logically grouped timestamps.
-		</p>
-	</section>
+<div class="flex min-h-screen flex-col">
+	<main class="container mx-auto flex-1 px-4 py-8">
+		<section class="mb-12 text-center">
+			<h1 class="mb-4 text-4xl font-bold text-blue-600">Gemini Transcribe</h1>
+			<p class="text-xl text-gray-600">
+				Transcribe audio and video files with speaker diarization and logically grouped timestamps.
+			</p>
+		</section>
 
-	<div class="mx-auto max-w-2xl">
-		{#if uploadComplete}
-			<div class="mb-6">
-				{#if fileType === 'audio'}
-					<audio src={fileUrl} controls class="mx-auto w-full" bind:this={audioElement} />
-				{:else if fileType === 'video'}
-					<video src={fileUrl} controls class="mx-auto w-full" bind:this={videoElement} />
-				{/if}
-			</div>
-
-			<button
-				on:click={downloadTranscript}
-				class="w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-			>
-				Download Transcript
-			</button>
-			<button
-				on:click={() => downloadTranscript({ timestamps: false })}
-				class="mt-2 w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
-			>
-				Download Transcript (no timestamps)
-			</button>
-		{:else}
-			<div class="mb-8 rounded-lg bg-white p-6 shadow-md">
-				<h2 class="mb-4 text-2xl font-semibold">Upload Your File</h2>
-				<Label for="audio-file" class="mb-2 block text-sm font-medium text-gray-700"
-					>Select an audio or video file</Label
-				>
-				<Input
-					type="file"
-					on:input={handleFileInput}
-					id="audio-file"
-					accept="audio/*,video/*"
-					class="mb-4 w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
-				/>
-				<button
-					on:click={handleSubmit}
-					class="mb-4 w-full rounded-lg bg-blue-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
-					disabled={!selectedFile || isUploading}
-				>
-					{isUploading ? 'Processing...' : 'Upload File'}
-				</button>
-
-				<p class="space-y-2 text-sm text-gray-700">
-					Transcribe mp3, wav, mp4, avi & more. Duration limit of 1 hour per file. This app uses an
-					experimental model. If processing fails, please try again.
-				</p>
-
-				{#if isUploading}
-					<p class="mt-2 text-sm font-bold text-gray-600">
-						Processing file - this may take a few minutes.
-					</p>
-				{:else}
-					<button
-						on:click={useSample}
-						class="mt-4 text-sm text-gray-600 underline hover:text-gray-800 focus:outline-none"
-					>
-						Try transcribing a sample file
-					</button>
-				{/if}
-			</div>
-		{/if}
-
-		<div class="mb-2">
-			{streamBuffer}
-		</div>
-
-		<div class="transcript mt-8">
-			{#each transcriptArray as entry, index}
-				<div class="mb-4 rounded-lg {index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} p-4 shadow-sm">
-					<button
-						class="mb-2 block rounded-full bg-blue-500 px-3 py-1 text-sm font-bold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-						on:click={() => handleTimestampClick(entry.timestamp)}
-					>
-						{entry.timestamp}
-					</button>
-					<span class="font-bold text-gray-700">{entry.speaker}:</span>
-					<span class="text-gray-800">{entry.text}</span>
+		<div class="mx-auto max-w-2xl">
+			{#if uploadComplete}
+				<div class="mb-6">
+					{#if fileType === 'audio'}
+						<audio src={fileUrl} controls class="mx-auto w-full" bind:this={audioElement} />
+					{:else if fileType === 'video'}
+						<video src={fileUrl} controls class="mx-auto w-full" bind:this={videoElement} />
+					{/if}
 				</div>
-			{/each}
+
+				<button
+					on:click={downloadTranscript}
+					class="w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+				>
+					Download Transcript
+				</button>
+				<button
+					on:click={() => downloadTranscript({ timestamps: false })}
+					class="mt-2 w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+				>
+					Download Transcript (no timestamps)
+				</button>
+			{:else}
+				<div class="mb-8 rounded-lg bg-white p-6 shadow-md">
+					<h2 class="mb-4 text-2xl font-semibold">Upload Your File</h2>
+					<Label for="audio-file" class="mb-2 block text-sm font-medium text-gray-700"
+						>Select an audio or video file</Label
+					>
+					<Input
+						type="file"
+						on:input={handleFileInput}
+						id="audio-file"
+						accept="audio/*,video/*"
+						class="mb-4 w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+					/>
+					<button
+						on:click={handleSubmit}
+						class="mb-4 w-full rounded-lg bg-blue-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+						disabled={!selectedFile || isUploading}
+					>
+						{isUploading ? 'Processing...' : 'Upload File'}
+					</button>
+
+					<p class="space-y-2 text-sm text-gray-700">
+						Transcribe mp3, wav, mp4, avi & more. Duration limit of 1 hour per file. This app uses
+						an experimental model. If processing fails, please try again.
+					</p>
+
+					{#if isUploading}
+						<p class="mt-2 text-sm font-bold text-gray-600">
+							Processing file - this may take a few minutes.
+						</p>
+					{:else}
+						<button
+							on:click={useSample}
+							class="mt-4 text-sm text-gray-600 underline hover:text-gray-800 focus:outline-none"
+						>
+							Try transcribing a sample file
+						</button>
+					{/if}
+				</div>
+			{/if}
+
+			<div class="mb-2">
+				{streamBuffer}
+			</div>
+
+			<div class="transcript mt-8">
+				{#each transcriptArray as entry, index}
+					<div class="mb-4 rounded-lg {index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} p-4 shadow-sm">
+						<button
+							class="mb-2 block rounded-full bg-blue-500 px-3 py-1 text-sm font-bold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+							on:click={() => handleTimestampClick(entry.timestamp)}
+						>
+							{entry.timestamp}
+						</button>
+						<span class="font-bold text-gray-700">{entry.speaker}:</span>
+						<span class="text-gray-800">{entry.text}</span>
+					</div>
+				{/each}
+			</div>
 		</div>
-	</div>
-</main>
+	</main>
+
+	<footer>
+		<div class="container mx-auto px-4 py-8 text-center text-gray-600">
+			<p>
+				<a href="https://mikeesto.com" class="hover:text-gray-800 focus:outline-none"
+					>by @mikeesto</a
+				>
+			</p>
+		</div>
+	</footer>
+</div>
