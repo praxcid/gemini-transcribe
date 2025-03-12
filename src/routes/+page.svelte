@@ -244,11 +244,13 @@
 
 	<footer>
 		<div class="container mx-auto px-4 py-8 text-center text-gray-600">
-			<p>
-				<a href="https://mikeesto.com" class="hover:text-gray-800 focus:outline-none"
-					>by @mikeesto</a
+			<p class="text-sm">
+				by <a
+					href="https://mikeesto.com"
+					class="text-blue-400 hover:text-blue-600 focus:outline-none">@mikeesto</a
 				>
 			</p>
+			<p class="mt-1 text-sm">suggestions/feedback? i'd love to hear from you</p>
 		</div>
 	</footer>
 </div>
