@@ -135,6 +135,23 @@
 		a.click();
 	}
 
+	async function downloadSRT() {
+		const response = await fetch('/api/srt', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ transcript: transcriptArray })
+		});
+
+		const blob = await response.blob();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'transcript.srt';
+		a.click();
+	}
+
 	async function useSample() {
 		const sampleFile = await fetch('/gettysburg-address.mp3');
 		const blob = await sampleFile.blob();
@@ -170,15 +187,21 @@
 
 				<button
 					on:click={downloadTranscript}
-					class="w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+					class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
 				>
 					Download Transcript
 				</button>
 				<button
 					on:click={() => downloadTranscript({ timestamps: false })}
-					class="mt-2 w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+					class="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
 				>
 					Download Transcript (no timestamps)
+				</button>
+				<button
+					on:click={downloadSRT}
+					class="mt-2 w-full rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white shadow-md transition duration-300 ease-in-out hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+				>
+					Download Subtitles (SRT)
 				</button>
 			{:else}
 				<div class="mb-8 rounded-lg bg-white p-6 shadow-md">
@@ -229,7 +252,7 @@
 				{#each transcriptArray as entry, index}
 					<div class="mb-4 rounded-lg {index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} p-4 shadow-sm">
 						<button
-							class="mb-2 block rounded-full bg-blue-500 px-3 py-1 text-sm font-bold text-white shadow-md transition duration-300 ease-in-out hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+							class="mb-2 block rounded-full bg-indigo-500 px-3 py-1 text-sm font-bold text-white shadow-md transition duration-300 ease-in-out hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
 							on:click={() => handleTimestampClick(entry.timestamp)}
 						>
 							{entry.timestamp}
