@@ -49,7 +49,7 @@ export async function POST({ request }) {
 		generationConfig: { responseMimeType: 'application/json' }
 	});
 
-try {
+	try {
 		// Check that the file has been processed
 		let uploadedFile = await fileManager.getFile(uploadResult.file.name);
 
@@ -89,7 +89,10 @@ try {
 
 		if (uploadedFile.state === FileState.FAILED) {
 			console.error('File processing failed for:', uploadedFile);
-			return new Response("Unfortunately this file couldn't be processed. The file may be corrupt or in an unsupported format.", { status: 500 });
+			return new Response(
+				"Unfortunately this file couldn't be processed. The file may be corrupt or in an unsupported format.",
+				{ status: 500 }
+			);
 		}
 
 		const result = await model.generateContentStream([
@@ -112,9 +115,11 @@ try {
 				'X-Content-Type-Options': 'nosniff'
 			}
 		});
-
 	} catch (error) {
 		console.error('Error during transcription process:', error);
-		return new Response("Sorry, something went wrong generating the transcript. Please try again later.", { status: 500 });
+		return new Response(
+			'Sorry, something went wrong generating the transcript. Please try again later.',
+			{ status: 500 }
+		);
 	}
 }
