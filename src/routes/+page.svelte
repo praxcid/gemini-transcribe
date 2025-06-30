@@ -26,8 +26,14 @@
 	}
 
 	function handleTimestampClick(timestamp: string) {
-		const [minutes, seconds] = timestamp.split(':').map(Number);
-		const timeInSeconds = minutes * 60 + seconds;
+		const parts = timestamp.split(':').map(Number);
+		let timeInSeconds = 0;
+
+		if (parts.length === 3) {
+			timeInSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]; // hh:mm:ss
+		} else if (parts.length === 2) {
+			timeInSeconds = parts[0] * 60 + parts[1]; // mm:ss
+		}
 
 		if (audioElement) {
 			audioElement.currentTime = timeInSeconds;

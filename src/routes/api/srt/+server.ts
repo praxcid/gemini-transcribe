@@ -1,21 +1,24 @@
-// Helper function to parse "mm:ss" string into total seconds (number)
-function parseMmSsToSeconds(timeString: string) {
-	const parts = timeString.split(':');
+// Helper function to parse "mm:ss" or "hh:mm:ss" string into total seconds (number)
+function parseTimeToSeconds(timeString: string) {
+	const parts = timeString.split(':').map(Number);
 
-	if (parts.length !== 2) {
-		console.warn(`Invalid timestamp format received: "${timeString}". Expected "mm:ss".`);
-		return NaN;
-	}
-
-	const minutes = parseInt(parts[0], 10);
-	const seconds = parseInt(parts[1], 10);
-
-	if (isNaN(minutes) || isNaN(seconds)) {
+	if (parts.some(isNaN)) {
 		console.warn(`Could not parse numbers from timestamp: "${timeString}".`);
 		return NaN;
 	}
 
-	return minutes * 60 + seconds;
+	let seconds = 0;
+	if (parts.length === 3) {
+		seconds = parts[0] * 3600 + parts[1] * 60 + parts[2]; // hh:mm:ss
+	} else if (parts.length === 2) {
+		seconds = parts[0] * 60 + parts[1]; // mm:ss
+	} else {
+		console.warn(
+			`Invalid timestamp format received: "${timeString}". Expected "mm:ss" or "hh:mm:ss".`
+		);
+		return NaN;
+	}
+	return seconds;
 }
 
 // Helper function to format total seconds (number) into HH:MM:SS,ms string
@@ -51,7 +54,7 @@ export async function POST({ request }) {
 				continue;
 			}
 
-			const startTimeSeconds = parseMmSsToSeconds(entry.timestamp);
+			const startTimeSeconds = parseTimeToSeconds(entry.timestamp);
 
 			// Check if parsing failed
 			if (isNaN(startTimeSeconds)) {
@@ -67,7 +70,7 @@ export async function POST({ request }) {
 				const nextEntry = transcript[i + 1];
 				// Check if next entry and its timestamp are valid before parsing
 				if (nextEntry && typeof nextEntry.timestamp === 'string') {
-					const nextStartTimeSeconds = parseMmSsToSeconds(nextEntry.timestamp);
+					const nextStartTimeSeconds = parseTimeToSeconds(nextEntry.timestamp);
 
 					// Check if next timestamp parsed correctly AND is chronologically after current
 					if (!isNaN(nextStartTimeSeconds) && nextStartTimeSeconds > startTimeSeconds) {
