@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
 import { file as tempFile } from 'tmp-promise';
-import { writeFile } from 'fs/promises';
+import { createWriteStream } from 'fs';
+import { pipeline } from 'stream/promises';
 import { env } from '$env/dynamic/private';
 import { safetySettings } from '$lib/index';
 
@@ -13,7 +14,7 @@ async function* streamChunks(stream: ReadableStream<Uint8Array>) {
 
 export async function POST({ request }) {
 	const formData = await request.formData();
-	const file = formData.get('file');
+	const file = formData.get('file') as File;
 
 	let tempFileHandle;
 	let uploadResult;
@@ -24,8 +25,7 @@ export async function POST({ request }) {
 	try {
 		tempFileHandle = await tempFile({ postfix: `.${file.name.split('.').pop()}` });
 
-		const arrayBuffer = await file.arrayBuffer();
-		await writeFile(tempFileHandle.path, Buffer.from(arrayBuffer));
+		await pipeline(file.stream(), createWriteStream(tempFileHandle.path));
 		uploadResult = await fileManager.uploadFile(tempFileHandle.path, {
 			mimeType: file.type
 		});
