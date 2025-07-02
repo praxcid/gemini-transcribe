@@ -14,13 +14,6 @@
 	let audioElement: HTMLAudioElement | null = null;
 	let videoElement: HTMLVideoElement | null = null;
 
-	$: if (streamBuffer) {
-		window.scrollTo({
-			top: document.body.scrollHeight + 50,
-			behavior: 'smooth'
-		});
-	}
-
 	$: if (transcriptArray.length) {
 		window.scrollTo(0, 0);
 	}
@@ -53,6 +46,36 @@
 			fileUrl = URL.createObjectURL(selectedFile);
 			fileType = selectedFile.type.includes('audio') ? 'audio' : 'video';
 		}
+	}
+
+	function parseStreamedJson(
+		buffer: string
+	): Array<{ timestamp: string; speaker: string; text: string }> {
+		const objectStrings = buffer.match(/{[^}]*}/g); // This regex attempts to find all substrings that look like complete JSON objects
+		if (!objectStrings) {
+			return [];
+		}
+
+		return objectStrings
+			.map((objStr) => {
+				try {
+					const parsed = JSON.parse(objStr);
+					if (
+						parsed &&
+						typeof parsed.timestamp === 'string' &&
+						typeof parsed.speaker === 'string' &&
+						typeof parsed.text === 'string'
+					) {
+						return parsed;
+					}
+					return null;
+				} catch (e) {
+					// This object string is likely incomplete or malformed, so we skip it
+					// The next chunk from the stream might complete it
+					return null;
+				}
+			})
+			.filter((entry): entry is { timestamp: string; speaker: string; text: string } => !!entry);
 	}
 
 	async function handleSubmit() {
@@ -118,6 +141,7 @@
 				}
 
 				streamBuffer += decoder.decode(value, { stream: true });
+				transcriptArray = parseStreamedJson(streamBuffer);
 			}
 		} finally {
 			reader.cancel();
@@ -272,10 +296,6 @@
 					{/if}
 				</div>
 			{/if}
-
-			<div class="mb-2">
-				{streamBuffer}
-			</div>
 
 			<div class="transcript mt-8">
 				{#each transcriptArray as entry, index}
