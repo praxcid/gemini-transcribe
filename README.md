@@ -6,6 +6,7 @@ A web application for transcribing audio and video files using Google's Gemini F
 
 ## Features
 
+- Specify the desired language of the transcript
 - Automatically detects and labels different speakers in the audio (Speaker 1, Speaker 2, etc.).
 - Instead of a timestamp for every word, the transcript is logically grouped into paragraphs with a single timestamp, making it much more readable.
 - Click on any timestamp to jump to that specific moment in the audio or video player.
