@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 
@@ -10,9 +11,20 @@
 
 	let streamBuffer = '';
 	let transcriptArray: Array<{ timestamp: string; speaker: string; text: string }> = [];
+	let language = 'English';
+	let initialized = false;
 
 	let audioElement: HTMLAudioElement | null = null;
 	let videoElement: HTMLVideoElement | null = null;
+
+	onMount(() => {
+		language = localStorage.getItem('transcriptionLanguage') || 'English';
+		initialized = true;
+	});
+
+	$: if (initialized) {
+		localStorage.setItem('transcriptionLanguage', language);
+	}
 
 	$: if (transcriptArray.length) {
 		window.scrollTo(0, 0);
@@ -99,6 +111,7 @@
 
 		const formData = new FormData();
 		formData.append('file', selectedFile);
+		formData.append('language', language);
 
 		const response = await fetch('/api/upload', {
 			method: 'POST',
@@ -268,6 +281,15 @@
 						id="audio-file"
 						accept="audio/*,video/*"
 						class="mb-4 w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+					/>
+					<Label for="language" class="mb-2 block text-sm font-medium text-gray-700"
+						>Language of Transcript</Label
+					>
+					<Input
+						type="text"
+						bind:value={language}
+						id="language"
+						class="mb-4 w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
 					/>
 					<button
 						on:click={handleSubmit}
