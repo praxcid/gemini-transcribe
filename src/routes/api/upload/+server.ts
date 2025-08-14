@@ -16,6 +16,9 @@ export async function POST({ request }) {
 	const formData = await request.formData();
 	const file = formData.get('file') as File;
 	const language = (formData.get('language') as string) || 'English';
+	const requestedModel = (formData.get('model') as string) || 'gemini-2.5-flash';
+	const separateSpeakers = (formData.get('separateSpeakers') as string) === 'true';
+	const medicalMode = (formData.get('medicalMode') as string) === 'true';
 
 	let tempFileHandle;
 	let uploadResult;
@@ -44,8 +47,16 @@ export async function POST({ request }) {
 	// Generate transcript
 	const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
 
+	// Basic allow-list to prevent arbitrary model names
+	const allowedModels = new Set([
+		'gemini-2.5-flash',
+		'gemini-2.5-pro',
+		'gemini-1.5-flash',
+		'gemini-1.5-pro'
+	]);
+	const modelName = allowedModels.has(requestedModel) ? requestedModel : 'gemini-2.5-flash';
 	const model = genAI.getGenerativeModel({
-		model: 'gemini-2.5-flash',
+		model: modelName,
 		safetySettings,
 		generationConfig: { responseMimeType: 'application/json' }
 	});
@@ -104,12 +115,25 @@ export async function POST({ request }) {
 				}
 			},
 			{
-				text: `Generate a transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. Respond with the transcript in the form of this JSON schema:
-     [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Has AI has revolutionized the way we live and work?"}]`
+				text: `Generate a ${medicalMode ? 'medical ' : ''}transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. ${separateSpeakers ? 'Identify and label distinct speakers as Speaker 1, Speaker 2, etc. Keep speaker labels consistent across the transcript.' : 'Do not attempt to identify multiple speakers; use a single speaker label Speaker 1 for all lines.'} ${medicalMode ? 'Act as a professional medical transcriptionist: accurately capture clinical terminology, medication names, dosages, procedures, anatomical terms, lab values, and patient instructions. Prefer precise standardized medical terminology (e.g., myocardial infarction instead of heart attack, hypertension instead of high blood pressure) when the audio clearly implies it, but faithfully reproduce verbatim any explicit layperson wording actually spoken. Do not invent or infer diagnoses or values not stated. Do not paraphrase patient speech; only substitute more clinical terms for obvious lay paraphrases when medically unambiguous. Expand unclear abbreviations only when medically unambiguous.' : ''} Respond with the transcript in the form of this JSON schema:
+    [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Chief complaint: patient presents with intermittent chest pain over the past 3 days."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Current medications include atorvastatin 20 milligrams daily and metformin 500 milligrams twice daily."}]`
 			}
 		]);
 
-		return new Response(streamChunks(result.stream), {
+		const readable = new ReadableStream({
+			async start(controller) {
+				for await (const chunk of result.stream) {
+					// Each chunk may have a .text() method similar to earlier logic
+					// Normalize to string
+					// @ts-ignore - dynamic chunk shape
+					const textPart = typeof chunk === 'string' ? chunk : (await chunk.text?.()) ?? '';
+					if (textPart) controller.enqueue(new TextEncoder().encode(textPart));
+				}
+				controller.close();
+			}
+		});
+
+		return new Response(readable, {
 			headers: {
 				'Content-Type': 'text/plain',
 				'Transfer-Encoding': 'chunked',
