@@ -19,6 +19,8 @@ export async function POST({ request }) {
 	const requestedModel = (formData.get('model') as string) || 'gemini-2.5-flash';
 	const separateSpeakers = (formData.get('separateSpeakers') as string) === 'true';
 	const medicalMode = (formData.get('medicalMode') as string) === 'true';
+	// Optional custom style / vocabulary context extracted from uploaded Word docs (.docx/.txt) on the client
+	const styleContext = (formData.get('styleContext') as string) || '';
 
 	let tempFileHandle;
 	let uploadResult;
@@ -107,6 +109,12 @@ export async function POST({ request }) {
 			);
 		}
 
+		// Build adaptive instruction including optional style context (truncated server-side as safety)
+		const trimmedStyle = styleContext?.slice(0, 20000); // cap to ~20k chars to protect token budget
+		const styleInstruction = trimmedStyle
+			? `\nIncorporate the following reference vocabulary, names, jargon, spellings and stylistic preferences where they clearly match the spoken audio (do NOT hallucinate terms not actually spoken). If a word in audio is ambiguous but a close match appears in this list, prefer the list's spelling. Reference style (do not output this list):\n---REFERENCE START---\n${trimmedStyle}\n---REFERENCE END---\n`
+			: '';
+
 		const result = await model.generateContentStream([
 			{
 				fileData: {
@@ -115,7 +123,7 @@ export async function POST({ request }) {
 				}
 			},
 			{
-				text: `Generate a ${medicalMode ? 'medical ' : ''}transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. ${separateSpeakers ? 'Identify and label distinct speakers as Speaker 1, Speaker 2, etc. Keep speaker labels consistent across the transcript.' : 'Do not attempt to identify multiple speakers; use a single speaker label Speaker 1 for all lines.'} ${medicalMode ? 'Act as a professional medical transcriptionist: accurately capture clinical terminology, medication names, dosages, procedures, anatomical terms, lab values, and patient instructions. Prefer precise standardized medical terminology (e.g., myocardial infarction instead of heart attack, hypertension instead of high blood pressure) when the audio clearly implies it, but faithfully reproduce verbatim any explicit layperson wording actually spoken. Do not invent or infer diagnoses or values not stated. Do not paraphrase patient speech; only substitute more clinical terms for obvious lay paraphrases when medically unambiguous. Expand unclear abbreviations only when medically unambiguous.' : ''} Respond with the transcript in the form of this JSON schema:
+				text: `Generate a ${medicalMode ? 'medical ' : ''}transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. ${separateSpeakers ? 'Identify and label distinct speakers as Speaker 1, Speaker 2, etc. Keep speaker labels consistent across the transcript.' : 'Do not attempt to identify multiple speakers; use a single speaker label Speaker 1 for all lines.'} ${medicalMode ? 'Act as a professional medical transcriptionist: accurately capture clinical terminology, medication names, dosages, procedures, anatomical terms, lab values, and patient instructions. Prefer precise standardized medical terminology (e.g., myocardial infarction instead of heart attack, hypertension instead of high blood pressure) when the audio clearly implies it, but faithfully reproduce verbatim any explicit layperson wording actually spoken. Do not invent or infer diagnoses or values not stated. Do not paraphrase patient speech; only substitute more clinical terms for obvious lay paraphrases when medically unambiguous. Expand unclear abbreviations only when medically unambiguous.' : ''} Avoid all contractions; always expand them fully (e.g., don't -> do not, can't -> cannot, it's -> it is, I'm -> I am, shouldn't -> should not, hasn't -> has not). Preserve exact proper nouns and acronyms. ${language === 'Australian English' ? ' Use Australian/British spellings (e.g., colour, organisation, centre, labour, paediatric, anaemia, haemorrhage, oesophagus, foetal, judgement, practise (verb sense), programme (when non-IT organisational usage), theatre) and avoid American variants (color, organization, center, labor, pediatric, anemia, hemorrhage, esophagus, fetal, judgment (retain Australian judgement), practice (verb), program (non-IT), theater) unless clearly spoken that way.' : ''}${styleInstruction}Respond with the transcript in the form of this JSON schema:
     [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Chief complaint: patient presents with intermittent chest pain over the past 3 days."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Current medications include atorvastatin 20 milligrams daily and metformin 500 milligrams twice daily."}]`
 			}
 		]);

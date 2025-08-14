@@ -38,8 +38,10 @@ export const POST: RequestHandler = async ({ request }) => {
       return line;
     });
 
-    const paragraphs = escaped.join('<br>');
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${safeFileBase}</title></head><body><div>${paragraphs}</div></body></html>`;
+    const paragraphs = escaped
+      .map((line) => `<p style="margin:0 0 8pt 0;font-family:Segoe UI,Arial,sans-serif;font-size:11pt;line-height:1.4;">${line}</p>`)
+      .join('\n');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${safeFileBase}</title><style>body{font-family:Segoe UI,Tahoma,Arial,sans-serif;font-size:11pt;line-height:1.4;}h1{font-size:16pt;margin:0 0 14pt 0;border-bottom:2px solid #444;padding-bottom:4pt;} .ts{color:#555;font-weight:bold;margin-right:6pt;} .spk{color:#1d4ed8;font-weight:bold;margin-right:4pt;}</style></head><body><h1>${safeFileBase}</h1>${paragraphs}</body></html>`;
     zip.file(`${safeFileBase}.doc`, html);
   });
 
