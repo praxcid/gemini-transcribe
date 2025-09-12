@@ -6,13 +6,35 @@ import { pipeline } from 'stream/promises';
 import { env } from '$env/dynamic/private';
 import { safetySettings } from '$lib/index';
 
+const requests = new Map<string, { count: number; expires: number }>();
+const RATE_LIMIT = 5;
+const DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
 async function* streamChunks(stream: ReadableStream<Uint8Array>) {
 	for await (const chunk of stream) {
 		yield chunk.text();
 	}
 }
 
-export async function POST({ request }) {
+export async function POST(event) {
+	const ip = event.getClientAddress();
+	const now = Date.now();
+	let record = requests.get(ip);
+
+	if (!record || record.expires < now) {
+		record = { count: 0, expires: now + DURATION };
+		requests.set(ip, record);
+	}
+
+	if (record.count >= RATE_LIMIT) {
+		return new Response(
+			'This free service supports up to 3 requests per user per day. Please try again tomorrow.',
+			{ status: 429 }
+		);
+	}
+
+	const { request } = event;
+
 	const formData = await request.formData();
 	const file = formData.get('file') as File;
 	const language = (formData.get('language') as string) || 'English';
@@ -108,6 +130,9 @@ export async function POST({ request }) {
      [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Has AI has revolutionized the way we live and work?"}]`
 			}
 		]);
+
+		record.count++;
+		requests.set(ip, record);
 
 		return new Response(streamChunks(result.stream), {
 			headers: {
