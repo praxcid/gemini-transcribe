@@ -6,9 +6,10 @@ import { pipeline } from 'stream/promises';
 import { env } from '$env/dynamic/private';
 import { safetySettings } from '$lib/index';
 
-const requests = new Map<string, { count: number; expires: number }>();
-const RATE_LIMIT = 5;
-const DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+// Rate limiting disabled for now
+// const requests = new Map<string, { count: number; expires: number }>();
+// const RATE_LIMIT = 5;
+// const DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 async function* streamChunks(stream: ReadableStream<Uint8Array>) {
 	for await (const chunk of stream) {
@@ -40,21 +41,22 @@ async function generateTranscriptWithModel(genAI, modelName, fileData, language)
 }
 
 export async function POST(event) {
-	const ip = event.getClientAddress();
-	const now = Date.now();
-	let record = requests.get(ip);
+	// Rate limiting disabled for now
+	// const ip = event.getClientAddress();
+	// const now = Date.now();
+	// let record = requests.get(ip);
 
-	if (!record || record.expires < now) {
-		record = { count: 0, expires: now + DURATION };
-		requests.set(ip, record);
-	}
+	// if (!record || record.expires < now) {
+	// 	record = { count: 0, expires: now + DURATION };
+	// 	requests.set(ip, record);
+	// }
 
-	if (record.count >= RATE_LIMIT) {
-		return new Response(
-			'This free service supports up to 3 requests per user per day. Please try again tomorrow.',
-			{ status: 429 }
-		);
-	}
+	// if (record.count >= RATE_LIMIT) {
+	// 	return new Response(
+	// 		'This free service supports up to 5 requests per user per day. Please try again tomorrow.',
+	// 		{ status: 429 }
+	// 	);
+	// }
 
 	const { request } = event;
 
@@ -171,8 +173,9 @@ export async function POST(event) {
 			}
 		}
 
-		record.count++;
-		requests.set(ip, record);
+		// Rate limiting disabled for now
+		// record.count++;
+		// requests.set(ip, record);
 
 		return new Response(streamChunks(result.stream), {
 			headers: {
