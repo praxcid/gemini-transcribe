@@ -531,7 +531,7 @@
 
 					{#each transcriptArray as entry, index}
 						<div
-							class="group rounded-xl border border-slate-200 bg-white/90 p-6 shadow-lg shadow-slate-500/10 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:shadow-xl hover:shadow-slate-500/20"
+							class="group rounded-xl border border-slate-200 bg-white/90 p-6 shadow-lg shadow-slate-500/10 backdrop-blur-sm transition-all duration-300"
 						>
 							<div
 								class="flex flex-col space-y-3 sm:flex-row sm:items-start sm:space-x-4 sm:space-y-0"
