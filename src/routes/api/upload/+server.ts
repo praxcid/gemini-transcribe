@@ -16,6 +16,29 @@ async function* streamChunks(stream: ReadableStream<Uint8Array>) {
 	}
 }
 
+async function generateTranscriptWithModel(genAI, modelName, fileData, language) {
+	const model = genAI.getGenerativeModel({
+		model: modelName,
+		safetySettings,
+		generationConfig: { responseMimeType: 'application/json' }
+	});
+
+	const result = await model.generateContentStream([
+		{
+			fileData: {
+				mimeType: fileData.mimeType,
+				fileUri: fileData.fileUri
+			}
+		},
+		{
+			text: `Generate a transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. Respond with the transcript in the form of this JSON schema:
+     [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Has AI has revolutionized the way we live and work?"}]`
+		}
+	]);
+
+	return result;
+}
+
 export async function POST(event) {
 	const ip = event.getClientAddress();
 	const now = Date.now();
@@ -66,12 +89,6 @@ export async function POST(event) {
 	// Generate transcript
 	const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
 
-	const model = genAI.getGenerativeModel({
-		model: 'gemini-2.5-flash',
-		safetySettings,
-		generationConfig: { responseMimeType: 'application/json' }
-	});
-
 	try {
 		// Check that the file has been processed
 		let uploadedFile = await fileManager.getFile(uploadResult.file.name);
@@ -118,18 +135,41 @@ export async function POST(event) {
 			);
 		}
 
-		const result = await model.generateContentStream([
-			{
-				fileData: {
-					mimeType: file.type,
-					fileUri: uploadResult.file.uri
+		const fileData = {
+			mimeType: file.type,
+			fileUri: uploadResult.file.uri
+		};
+
+		let result;
+		try {
+			// Try with the primary model first
+			console.log('Attempting transcription with gemini-2.5-flash');
+			result = await generateTranscriptWithModel(genAI, 'gemini-2.5-flash', fileData, language);
+		} catch (error) {
+			// Check if it's a 429 error (rate limit)
+			if (
+				error instanceof Error &&
+				(error.message.includes('429') || error.message.includes('rate limit'))
+			) {
+				console.warn(
+					'Primary model rate limited, falling back to gemini-2.5-flash-lite-preview-09-2025'
+				);
+				try {
+					result = await generateTranscriptWithModel(
+						genAI,
+						'gemini-2.5-flash-lite-preview-09-2025',
+						fileData,
+						language
+					);
+				} catch (fallbackError) {
+					console.error('Fallback model also failed:', fallbackError);
+					throw fallbackError;
 				}
-			},
-			{
-				text: `Generate a transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. Respond with the transcript in the form of this JSON schema:
-     [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Has AI has revolutionized the way we live and work?"}]`
+			} else {
+				// Not a 429 error, re-throw the original error
+				throw error;
 			}
-		]);
+		}
 
 		record.count++;
 		requests.set(ip, record);
