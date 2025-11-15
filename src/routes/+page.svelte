@@ -92,17 +92,9 @@
 		if (!selectedFile) return;
 		errorMessage = null;
 
-		// Only allow files that are less than 1 hour in length
-		const tempMediaElement = document.createElement(fileType === 'audio' ? 'audio' : 'video');
-		tempMediaElement.src = fileUrl;
-
-		const duration = await new Promise((resolve, reject) => {
-			tempMediaElement.onloadedmetadata = () => resolve(tempMediaElement.duration);
-			tempMediaElement.onerror = reject;
-		});
-
-		if (duration >= 3600) {
-			alert('This file is too long. Please select a file that is less than 1 hour in length.');
+		// Only allow files that are less than 512MB in size
+		if (selectedFile.size >= 536870912) {
+		 alert('This file is too large. Please select a file that is less than 512MB.');
 			return;
 		}
 
@@ -468,8 +460,8 @@
 							<div
 								class="rounded-lg border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-blue-50 p-4 text-sm text-cyan-800 shadow-sm"
 							>
-								<p>📁 Supported formats: MP3, WAV, MP4, AVI & more</p>
-								<p>⏱️ Maximum duration: 1 hour per file</p>
+								<p>Supported formats: MP3, WAV, MP4, AVI & more</p>
+								<p>Maximum file size: 512MB</p>
 								<p>This app uses an experimental model. If processing fails, please try again</p>
 							</div>
 						</div>
