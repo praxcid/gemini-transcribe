@@ -5,6 +5,8 @@ import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { env } from '$env/dynamic/private';
 import { safetySettings } from '$lib/index';
+import { Readable } from 'node:stream';
+import Busboy from 'busboy';
 
 // Rate limiting disabled for now
 // const requests = new Map<string, { count: number; expires: number }>();
@@ -60,22 +62,84 @@ export async function POST(event) {
 
 	const { request } = event;
 
-	const formData = await request.formData();
-	const file = formData.get('file') as File;
-	const language = (formData.get('language') as string) || 'English';
+	const contentType = request.headers.get('content-type');
+	if (!contentType || !contentType.startsWith('multipart/form-data')) {
+		return new Response('Expected multipart/form-data', { status: 400 });
+	}
 
+	// Reject large uploads
+	const contentLength = request.headers.get('content-length');
+	const MAX_UPLOAD_BYTES = 512 * 1024 * 1024; // 512MB
+	if (contentLength && Number(contentLength) > MAX_UPLOAD_BYTES) {
+		return new Response('File too large', { status: 413 });
+	}
+
+	// Convert Web ReadableStream to Node Readable
+	const nodeReadable = Readable.fromWeb(request.body as any);
+
+	let language = 'English';
+	let uploadedFilePath: string | null = null;
+	let uploadedFileMime: string | undefined;
 	let tempFileHandle;
-	let uploadResult;
+
+	const busboy = Busboy({
+		headers: {
+			'content-type': contentType
+		}
+	});
+
+	const parsePromise = new Promise<void>((resolve, reject) => {
+		busboy.on('field', (fieldname, value) => {
+			if (fieldname === 'language') {
+				language = value || 'English';
+			}
+		});
+
+		busboy.on('file', async (fieldname, fileStream, info) => {
+			// Only handle the 'file' field
+			if (fieldname !== 'file') {
+				fileStream.resume(); // discard any other file fields
+				return;
+			}
+
+			try {
+				tempFileHandle = await tempFile({
+					postfix: info.filename.includes('.') ? `.${info.filename.split('.').pop()}` : ''
+				});
+				uploadedFilePath = tempFileHandle.path;
+				uploadedFileMime = info.mimeType;
+
+				await pipeline(fileStream, createWriteStream(tempFileHandle.path));
+			} catch (err) {
+				reject(err);
+			}
+		});
+
+		busboy.on('error', (err) => reject(err));
+		busboy.on('finish', () => resolve());
+	});
+
+	nodeReadable.pipe(busboy);
+
+	try {
+		await parsePromise;
+	} catch (err) {
+		console.error('Error parsing multipart body:', err);
+		if (tempFileHandle) tempFileHandle.cleanup();
+		return new Response('Error uploading file', { status: 500 });
+	}
+
+	if (!uploadedFilePath || !uploadedFileMime) {
+		if (tempFileHandle) tempFileHandle.cleanup();
+		return new Response('No file uploaded', { status: 400 });
+	}
 
 	const fileManager = new GoogleAIFileManager(env.GOOGLE_API_KEY);
 
-	// Upload file
+	let uploadResult;
 	try {
-		tempFileHandle = await tempFile({ postfix: `.${file.name.split('.').pop()}` });
-
-		await pipeline(file.stream(), createWriteStream(tempFileHandle.path));
-		uploadResult = await fileManager.uploadFile(tempFileHandle.path, {
-			mimeType: file.type
+		uploadResult = await fileManager.uploadFile(uploadedFilePath, {
+			mimeType: uploadedFileMime
 		});
 	} catch (error) {
 		console.error(error);
@@ -86,18 +150,15 @@ export async function POST(event) {
 		}
 	}
 
-	console.log(uploadResult);
-
-	// Generate transcript
 	const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
 
 	try {
-		// Check that the file has been processed
+		// Poll until the file is processed
 		let uploadedFile = await fileManager.getFile(uploadResult.file.name);
 
 		let retries = 0;
 		const maxRetries = 3;
-		const initialRetryDelay = 1000; // 1 second
+		const initialRetryDelay = 1000;
 
 		while (uploadedFile.state === FileState.PROCESSING) {
 			console.log('File is processing... waiting 5 seconds before next poll.');
@@ -105,9 +166,8 @@ export async function POST(event) {
 
 			try {
 				uploadedFile = await fileManager.getFile(uploadResult.file.name);
-				retries = 0; // Reset retries on a successful API call
+				retries = 0;
 			} catch (error) {
-				// Check if it's a 5xx error eligible for retry
 				if (error instanceof Error && error.message.includes('500 Internal Server Error')) {
 					retries++;
 					if (retries > maxRetries) {
@@ -115,14 +175,13 @@ export async function POST(event) {
 						throw new Error('Transcription API is currently unavailable. Please try again later.');
 					}
 
-					const delay = initialRetryDelay * Math.pow(2, retries - 1); // 1s, 2s, 4s
+					const delay = initialRetryDelay * Math.pow(2, retries - 1);
 					console.warn(
 						`Transcription API error during polling, retrying in ${delay}ms... (Attempt ${retries}/${maxRetries})`
 					);
 					await new Promise((resolve) => setTimeout(resolve, delay));
 					continue;
 				} else {
-					// Not a retryable error, throw it to the outer catch block
 					console.error('Unhandled error during file polling:', error);
 					throw error;
 				}
@@ -138,17 +197,15 @@ export async function POST(event) {
 		}
 
 		const fileData = {
-			mimeType: file.type,
+			mimeType: uploadedFileMime,
 			fileUri: uploadResult.file.uri
 		};
 
 		let result;
 		try {
-			// Try with the primary model first
 			console.log('Attempting transcription with gemini-2.5-flash');
 			result = await generateTranscriptWithModel(genAI, 'gemini-2.5-flash', fileData, language);
 		} catch (error) {
-			// Check if it's a 429 error (rate limit)
 			if (
 				error instanceof Error &&
 				(error.message.includes('429') || error.message.includes('rate limit'))
@@ -156,19 +213,13 @@ export async function POST(event) {
 				console.warn(
 					'Primary model rate limited, falling back to gemini-2.5-flash-lite-preview-09-2025'
 				);
-				try {
-					result = await generateTranscriptWithModel(
-						genAI,
-						'gemini-2.5-flash-lite-preview-09-2025',
-						fileData,
-						language
-					);
-				} catch (fallbackError) {
-					console.error('Fallback model also failed:', fallbackError);
-					throw fallbackError;
-				}
+				result = await generateTranscriptWithModel(
+					genAI,
+					'gemini-2.5-flash-lite-preview-09-2025',
+					fileData,
+					language
+				);
 			} else {
-				// Not a 429 error, re-throw the original error
 				throw error;
 			}
 		}

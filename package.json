@@ -36,6 +36,7 @@
 	"dependencies": {
 		"@google/generative-ai": "^0.21.0",
 		"bits-ui": "^0.21.13",
+		"busboy": "^1.6.0",
 		"clsx": "^2.1.1",
 		"jsonrepair": "^3.9.0",
 		"tailwind-merge": "^2.5.2",
