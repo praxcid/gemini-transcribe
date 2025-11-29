@@ -94,7 +94,7 @@
 
 		// Only allow files that are less than 512MB in size
 		if (selectedFile.size >= 536870912) {
-		 alert('This file is too large. Please select a file that is less than 512MB.');
+			alert('This file is too large. Please select a file that is less than 512MB.');
 			return;
 		}
 
@@ -225,10 +225,6 @@
 </svelte:head>
 
 <div class="flex min-h-screen flex-col bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
-	<div
-		class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMzNzM2ZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-30"
-	></div>
-
 	<main class="container relative z-10 mx-auto flex-grow px-4 py-8">
 		<section class="mb-6 text-center">
 			<h1
@@ -250,12 +246,7 @@
 				>
 					<div class="mb-8">
 						{#if fileType === 'audio'}
-							<audio
-								src={fileUrl}
-								controls
-								class="h-12 w-full rounded-lg shadow-lg shadow-indigo-500/20"
-								bind:this={audioElement}
-							/>
+							<audio src={fileUrl} controls class="h-12 w-full" bind:this={audioElement} />
 						{:else if fileType === 'video'}
 							<video
 								src={fileUrl}
