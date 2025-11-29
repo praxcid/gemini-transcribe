@@ -208,10 +208,12 @@ export async function POST(event) {
 		} catch (error) {
 			if (
 				error instanceof Error &&
-				(error.message.includes('429') || error.message.includes('rate limit'))
+				(error.message.includes('429') ||
+					error.message.includes('rate limit') ||
+					error.message.includes('503'))
 			) {
 				console.warn(
-					'Primary model rate limited, falling back to gemini-2.5-flash-lite-preview-09-2025'
+					'Primary model unavailable or rate limited, falling back to gemini-2.5-flash-lite-preview'
 				);
 				result = await generateTranscriptWithModel(
 					genAI,
