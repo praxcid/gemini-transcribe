@@ -555,7 +555,7 @@
 						@mikeesto
 					</a>
 				</p>
-				<p class="mt-1 text-sm">Suggestions/feedback? I'd love to hear from you</p>
+				<p class="mt-1 text-sm">Suggestions or feedback? I'd love to hear from you.</p>
 			</div>
 		</div>
 	</footer>
