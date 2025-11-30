@@ -1,6 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
-import { file as tempFile } from 'tmp-promise';
+import { GoogleGenAI } from '@google/genai';
+import { file as tempFile, type FileResult } from 'tmp-promise';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { env } from '$env/dynamic/private';
@@ -13,33 +12,47 @@ import Busboy from 'busboy';
 // const RATE_LIMIT = 5;
 // const DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
-async function* streamChunks(stream: ReadableStream<Uint8Array>) {
-	for await (const chunk of stream) {
-		yield chunk.text();
+async function* streamChunks(asyncGenerator: AsyncIterableIterator<{ text?: string }>) {
+	for await (const chunk of asyncGenerator) {
+		if (chunk.text) {
+			yield chunk.text;
+		}
 	}
 }
 
-async function generateTranscriptWithModel(genAI, modelName, fileData, language) {
-	const model = genAI.getGenerativeModel({
+async function generateTranscriptWithModel(
+	ai: GoogleGenAI,
+	modelName: string,
+	fileUri: string,
+	mimeType: string,
+	language: string
+) {
+	const response = await ai.models.generateContentStream({
 		model: modelName,
-		safetySettings,
-		generationConfig: { responseMimeType: 'application/json' }
+		contents: [
+			{
+				role: 'user',
+				parts: [
+					{
+						fileData: {
+							mimeType: mimeType,
+							fileUri: fileUri
+						}
+					},
+					{
+						text: `Generate a transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. Respond with the transcript in the form of this JSON schema:
+ [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Has AI has revolutionized the way we live and work?"}]`
+					}
+				]
+			}
+		],
+		config: {
+			safetySettings,
+			responseMimeType: 'application/json'
+		}
 	});
 
-	const result = await model.generateContentStream([
-		{
-			fileData: {
-				mimeType: fileData.mimeType,
-				fileUri: fileData.fileUri
-			}
-		},
-		{
-			text: `Generate a transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. Respond with the transcript in the form of this JSON schema:
-     [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Has AI has revolutionized the way we live and work?"}]`
-		}
-	]);
-
-	return result;
+	return response;
 }
 
 export async function POST(event) {
@@ -75,18 +88,20 @@ export async function POST(event) {
 	}
 
 	// Convert Web ReadableStream to Node Readable
-	const nodeReadable = Readable.fromWeb(request.body as any);
+	const nodeReadable = Readable.fromWeb(request.body as import('stream/web').ReadableStream);
 
 	let language = 'English';
 	let uploadedFilePath: string | null = null;
 	let uploadedFileMime: string | undefined;
-	let tempFileHandle;
+	let tempFileHandle: FileResult | undefined;
 
 	const busboy = Busboy({
 		headers: {
 			'content-type': contentType
 		}
 	});
+
+	let fileUploadPromise: Promise<void> | null = null;
 
 	const parsePromise = new Promise<void>((resolve, reject) => {
 		busboy.on('field', (fieldname, value) => {
@@ -95,28 +110,36 @@ export async function POST(event) {
 			}
 		});
 
-		busboy.on('file', async (fieldname, fileStream, info) => {
+		busboy.on('file', (fieldname, fileStream, info) => {
 			// Only handle the 'file' field
 			if (fieldname !== 'file') {
 				fileStream.resume(); // discard any other file fields
 				return;
 			}
 
-			try {
-				tempFileHandle = await tempFile({
-					postfix: info.filename.includes('.') ? `.${info.filename.split('.').pop()}` : ''
-				});
-				uploadedFilePath = tempFileHandle.path;
-				uploadedFileMime = info.mimeType;
+			fileUploadPromise = (async () => {
+				try {
+					tempFileHandle = await tempFile({
+						postfix: info.filename.includes('.') ? `.${info.filename.split('.').pop()}` : ''
+					});
+					uploadedFilePath = tempFileHandle.path;
+					uploadedFileMime = info.mimeType;
 
-				await pipeline(fileStream, createWriteStream(tempFileHandle.path));
-			} catch (err) {
-				reject(err);
-			}
+					await pipeline(fileStream, createWriteStream(tempFileHandle.path));
+				} catch (err) {
+					reject(err);
+				}
+			})();
 		});
 
 		busboy.on('error', (err) => reject(err));
-		busboy.on('finish', () => resolve());
+		busboy.on('finish', async () => {
+			// Wait for file upload to complete before resolving
+			if (fileUploadPromise) {
+				await fileUploadPromise;
+			}
+			resolve();
+		});
 	});
 
 	nodeReadable.pipe(busboy);
@@ -134,12 +157,15 @@ export async function POST(event) {
 		return new Response('No file uploaded', { status: 400 });
 	}
 
-	const fileManager = new GoogleAIFileManager(env.GOOGLE_API_KEY);
+	const ai = new GoogleGenAI({ apiKey: env.GOOGLE_API_KEY });
 
 	let uploadResult;
 	try {
-		uploadResult = await fileManager.uploadFile(uploadedFilePath, {
-			mimeType: uploadedFileMime
+		uploadResult = await ai.files.upload({
+			file: uploadedFilePath,
+			config: {
+				mimeType: uploadedFileMime
+			}
 		});
 	} catch (error) {
 		console.error(error);
@@ -150,22 +176,20 @@ export async function POST(event) {
 		}
 	}
 
-	const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
-
 	try {
 		// Poll until the file is processed
-		let uploadedFile = await fileManager.getFile(uploadResult.file.name);
+		let uploadedFile = await ai.files.get({ name: uploadResult.name! });
 
 		let retries = 0;
 		const maxRetries = 3;
 		const initialRetryDelay = 1000;
 
-		while (uploadedFile.state === FileState.PROCESSING) {
+		while (uploadedFile.state === 'PROCESSING') {
 			console.log('File is processing... waiting 5 seconds before next poll.');
 			await new Promise((resolve) => setTimeout(resolve, 5000));
 
 			try {
-				uploadedFile = await fileManager.getFile(uploadResult.file.name);
+				uploadedFile = await ai.files.get({ name: uploadResult.name! });
 				retries = 0;
 			} catch (error) {
 				if (error instanceof Error && error.message.includes('500 Internal Server Error')) {
@@ -188,7 +212,7 @@ export async function POST(event) {
 			}
 		}
 
-		if (uploadedFile.state === FileState.FAILED) {
+		if (uploadedFile.state === 'FAILED') {
 			console.error('File processing failed for:', uploadedFile);
 			return new Response(
 				"Unfortunately this file couldn't be processed. The file may be corrupt or in an unsupported format.",
@@ -196,15 +220,21 @@ export async function POST(event) {
 			);
 		}
 
-		const fileData = {
-			mimeType: uploadedFileMime,
-			fileUri: uploadResult.file.uri
-		};
+		if (!uploadedFile.uri) {
+			console.error('Uploaded file URI is undefined');
+			return new Response('File upload incomplete, URI not available', { status: 500 });
+		}
 
 		let result;
 		try {
 			console.log('Attempting transcription with gemini-2.5-flash');
-			result = await generateTranscriptWithModel(genAI, 'gemini-2.5-flash', fileData, language);
+			result = await generateTranscriptWithModel(
+				ai,
+				'gemini-2.5-flash',
+				uploadedFile.uri,
+				uploadedFileMime,
+				language
+			);
 		} catch (error) {
 			if (
 				error instanceof Error &&
@@ -216,9 +246,10 @@ export async function POST(event) {
 					'Primary model unavailable or rate limited, falling back to gemini-2.5-flash-lite-preview'
 				);
 				result = await generateTranscriptWithModel(
-					genAI,
+					ai,
 					'gemini-2.5-flash-lite-preview-09-2025',
-					fileData,
+					uploadedFile.uri,
+					uploadedFileMime,
 					language
 				);
 			} else {
@@ -230,7 +261,10 @@ export async function POST(event) {
 		// record.count++;
 		// requests.set(ip, record);
 
-		return new Response(streamChunks(result.stream), {
+		const nodeStream = Readable.from(streamChunks(result));
+		const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
+
+		return new Response(webStream, {
 			headers: {
 				'Content-Type': 'text/plain',
 				'Transfer-Encoding': 'chunked',
