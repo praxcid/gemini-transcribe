@@ -9,9 +9,9 @@ export async function POST({ request }) {
 		transcript.forEach((entry: { timestamp: string; speaker: string; text: string }) => {
 			const lines = [];
 			if (timestamps) {
-				lines.push(new TextRun({ text: '[' + entry.timestamp + ']', bold: true }));
+				lines.push(new TextRun({ text: '[' + entry.timestamp + '] ', bold: true }));
 			}
-			lines.push(new TextRun({ text: '[' + entry.speaker + '] ', bold: true }));
+			lines.push(new TextRun({ text: entry.speaker + ': ', bold: true }));
 			lines.push(new TextRun({ text: entry.text }));
 
 			const paragraph = new Paragraph({ children: lines });
@@ -34,13 +34,13 @@ export async function POST({ request }) {
 	if (timestamps) {
 		formattedTranscript = transcript
 			.map((entry) => {
-				return '[' + entry.timestamp + '\n[' + entry.speaker + ']\n' + entry.text;
+				return '[' + entry.timestamp + '] ' + entry.speaker + ': ' + entry.text;
 			})
 			.join('\n\n');
 	} else {
 		formattedTranscript = transcript
 			.map((entry) => {
-				return '[' + entry.speaker + ']\n' + entry.text;
+				return entry.speaker + ': ' + entry.text;
 			})
 			.join('\n\n');
 	}

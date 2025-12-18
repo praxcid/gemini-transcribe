@@ -268,36 +268,20 @@
 
 					<!-- Download Actions -->
 				<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-						<button
-							on:click={() => downloadDocx()}
-							class="group relative w-full transform overflow-hidden rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 px-6 py-4 font-semibold text-white shadow-lg shadow-purple-500/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/40"
-						>
-							<div class="relative flex items-center justify-center space-x-2">
-								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5" />
-								</svg>
-								<span>Download DOCX</span>
-							</div>
-						</button>
+				<button
+					on:click={downloadDocxNoTimestamps}
+					class="group relative w-full transform overflow-hidden rounded-lg bg-gradient-to-r from-fuchsia-600 to-rose-500 px-6 py-4 font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-fuchsia-500/40"
+				>
+					<div class="relative flex items-center justify-center space-x-2">
+						<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5" />
+						</svg>
+						<span>Download Transcript</span>
+					</div>
+				</button>
+			</div>
 
-					<button
-						on:click={downloadDocxNoTimestamps}
-						class="group relative w-full transform overflow-hidden rounded-lg bg-gradient-to-r from-fuchsia-600 to-rose-500 px-6 py-4 font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-fuchsia-500/40"
-					>
-						<div class="relative flex items-center justify-center space-x-2">
-							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5" />
-							</svg>
-							<span>
-								Download DOCX
-								<br />
-								(no timestamps)
-							</span>
-						</div>
-					</button>
-				</div>
-
-				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 					<button
 						on:click={copyToClipboard}
 							class="group relative transform overflow-hidden rounded-lg border-2 border-slate-300 bg-white/90 px-6 py-4 font-semibold text-slate-700 shadow-lg shadow-slate-500/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-slate-50 hover:shadow-xl hover:shadow-slate-500/20"
@@ -528,12 +512,8 @@
 									{entry.timestamp}
 								</button>
 								<div class="min-w-0 flex-1">
-									<div class="mb-3 flex items-center space-x-2">
-										<span
-											class="inline-flex items-center rounded-full border-2 border-emerald-200 bg-gradient-to-r from-emerald-100 to-teal-100 px-3 py-1 text-sm font-semibold text-emerald-700 shadow-sm"
-										>
-											{entry.speaker}
-										</span>
+								<div class="mb-3">
+									<span class="text-sm font-bold text-slate-800">{entry.speaker}:</span>
 									</div>
 									<p class="font-medium leading-relaxed text-slate-800">{entry.text}</p>
 								</div>

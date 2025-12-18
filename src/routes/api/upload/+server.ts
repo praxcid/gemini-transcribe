@@ -41,7 +41,7 @@ async function generateTranscriptWithModel(
 					},
 					{
 						text: `Generate a transcript in ${language} for this file. Always use the format mm:ss for the time. Group similar text together rather than timestamping every line. Respond with the transcript in the form of this JSON schema:
- [{"timestamp": "00:00", "speaker": "Speaker 1", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Speaker 1", "text": "Has AI has revolutionized the way we live and work?"}]`
+ [{"timestamp": "00:00", "speaker": "Researcher", "text": "Today I will be talking about the importance of AI in the modern world."},{"timestamp": "01:00", "speaker": "Participant", "text": "Has AI has revolutionized the way we live and work?"}]`
 					}
 				]
 			}
