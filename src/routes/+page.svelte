@@ -11,7 +11,9 @@
 
 	let streamBuffer = '';
 	let transcriptArray: Array<{ timestamp: string; speaker: string; text: string }> = [];
-	let language = 'English';
+	let language = 'Nepali Romanized English';
+	let separateSpeakers = true;
+	let model = 'gemini-3-flash-preview';
 	let initialized = false;
 	let errorMessage: string | null = null;
 
@@ -20,12 +22,17 @@
 	let copiedToClipboard = false;
 
 	onMount(() => {
-		language = localStorage.getItem('transcriptionLanguage') || 'English';
+		language = localStorage.getItem('transcriptionLanguage') || 'Nepali Romanized English';
+		const sep = localStorage.getItem('separateSpeakers');
+		separateSpeakers = sep === null ? true : sep === 'true';
+		model = localStorage.getItem('transcriptionModel') || model;
 		initialized = true;
 	});
 
 	$: if (initialized) {
 		localStorage.setItem('transcriptionLanguage', language);
+		localStorage.setItem('separateSpeakers', String(separateSpeakers));
+		localStorage.setItem('transcriptionModel', model);
 	}
 
 	function handleTimestampClick(timestamp: string) {
@@ -104,6 +111,8 @@
 		const formData = new FormData();
 		formData.append('file', selectedFile);
 		formData.append('language', language);
+		formData.append('separateSpeakers', String(separateSpeakers));
+		formData.append('model', model);
 
 		const response = await fetch('/api/upload', {
 			method: 'POST',
@@ -159,23 +168,32 @@
 		}
 	}
 
-	async function downloadTranscript({ timestamps = true } = {}) {
+
+
+	async function downloadDocx({ timestamps = true } = {}) {
+		const baseName = selectedFile
+			? selectedFile.name.replace(/\.[^/.]+$/, '')
+			: 'transcript';
+
 		const response = await fetch('/api/download', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ transcript: transcriptArray, timestamps })
+			body: JSON.stringify({ transcript: transcriptArray, timestamps, filename: baseName, format: 'docx' })
 		});
 
 		const blob = await response.blob();
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = 'transcript.txt';
+		a.download = `${baseName}.docx`;
 		a.click();
 	}
 
+	async function downloadDocxNoTimestamps() {
+		await downloadDocx({ timestamps: false });
+	}
 
 	function reset() {
 		selectedFile = null;
@@ -195,14 +213,7 @@
 		}
 	}
 
-	async function useSample() {
-		const sampleFile = await fetch('/gettysburg-address.mp3');
-		const blob = await sampleFile.blob();
-		selectedFile = new File([blob], 'sample.mp3', { type: 'audio/mp3' });
-		fileUrl = URL.createObjectURL(selectedFile);
-		fileType = 'audio';
-		handleSubmit();
-	}
+
 
 	async function copyToClipboard() {
 		const text = transcriptArray
@@ -249,85 +260,46 @@
 								controls
 								class="w-full rounded-lg shadow-xl shadow-indigo-500/20"
 								bind:this={videoElement}
-							/>
+							>
+								<track kind="captions" />
+							</video>
 						{/if}
 					</div>
 
 					<!-- Download Actions -->
-					<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+				<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
 						<button
-							on:click={downloadTranscript}
-							class="group relative transform overflow-hidden rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/40"
+							on:click={() => downloadDocx()}
+							class="group relative w-full transform overflow-hidden rounded-lg bg-gradient-to-r from-purple-600 to-pink-500 px-6 py-4 font-semibold text-white shadow-lg shadow-purple-500/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-500/40"
 						>
 							<div class="relative flex items-center justify-center space-x-2">
 								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-									/>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5" />
 								</svg>
-								<span>Download Transcript</span>
+								<span>Download DOCX</span>
 							</div>
 						</button>
 
-						<button
-							on:click={() => downloadTranscript({ timestamps: false })}
-							class="group relative transform overflow-hidden rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/40"
-						>
-							<div class="relative flex items-center justify-center space-x-2">
-								<svg
-									class="h-5 w-5 flex-shrink-0"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-									/>
-								</svg>
-								<span>
-									Download Transcript
-									<br />
-									(no timestamps)
-								</span>
-							</div>
-						</button>
-					</div>
+					<button
+						on:click={downloadDocxNoTimestamps}
+						class="group relative w-full transform overflow-hidden rounded-lg bg-gradient-to-r from-fuchsia-600 to-rose-500 px-6 py-4 font-semibold text-white shadow-lg shadow-fuchsia-500/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-fuchsia-500/40"
+					>
+						<div class="relative flex items-center justify-center space-x-2">
+							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7H5" />
+							</svg>
+							<span>
+								Download DOCX
+								<br />
+								(no timestamps)
+							</span>
+						</div>
+					</button>
+				</div>
 
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						<button
-							on:click={copyToClipboard}
-							class="group relative transform overflow-hidden rounded-lg px-6 py-4 font-semibold text-white shadow-lg transition-all duration-300 hover:-translate-y-1 {copiedToClipboard
-								? 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/40'
-								: 'bg-gradient-to-r from-blue-600 to-cyan-600 shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40'}"
-						>
-							<div class="relative flex items-center justify-center space-x-2">
-								{#if copiedToClipboard}
-									<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-										<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-									</svg>
-									<span>Copied</span>
-								{:else}
-									<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-										/>
-									</svg>
-									<span>Copy to Clipboard</span>
-								{/if}
-							</div>
-						</button>
-
-						<button
-							on:click={reset}
+				<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+					<button
+						on:click={copyToClipboard}
 							class="group relative transform overflow-hidden rounded-lg border-2 border-slate-300 bg-white/90 px-6 py-4 font-semibold text-slate-700 shadow-lg shadow-slate-500/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-slate-50 hover:shadow-xl hover:shadow-slate-500/20"
 						>
 							<div class="relative flex items-center justify-center space-x-2">
@@ -395,13 +367,40 @@
 							<Label for="language" class="mb-2 block text-sm font-medium text-slate-700">
 								Language of Transcript
 							</Label>
-							<Input
-								type="text"
-								bind:value={language}
+							<select
 								id="language"
-								placeholder="Enter language (e.g., English, Spanish)"
-								class="w-full rounded-lg border-2 border-indigo-200 bg-white/90 px-4 py-3 text-slate-800 placeholder-slate-400 shadow-sm backdrop-blur-sm transition-all duration-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-							/>
+								bind:value={language}
+								class="w-full rounded-lg border-2 border-indigo-200 bg-white/90 px-4 py-3 text-slate-800 shadow-sm backdrop-blur-sm transition-all duration-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+							>
+								<option value="English">English</option>
+								<option value="Australian English">Australian English</option>
+								<option value="Nepali Romanized English">Nepali Romanized English</option>
+							</select>
+
+							<div class="mt-3">
+								<label for="model" class="mb-2 block text-sm font-medium text-slate-700">Model</label>
+								<select
+									id="model"
+									bind:value={model}
+									class="w-full rounded-lg border-2 border-indigo-200 bg-white/90 px-4 py-3 text-slate-800 shadow-sm backdrop-blur-sm transition-all duration-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+								>
+									<option value="gemini-3-flash-preview">gemini-3-flash-preview (default)</option>
+									<option value="gemini-2.5-flash">gemini-2.5-flash</option>
+									<option value="gemini-2.5-flash-lite-preview-09-2025">flash-lite (fallback)</option>
+								</select>
+							</div>
+
+							<div class="mt-3 flex items-start space-x-2">
+								<input
+									type="checkbox"
+									id="separate-speakers"
+									class="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+									bind:checked={separateSpeakers}
+								/>
+								<label for="separate-speakers" class="text-sm text-slate-700">
+									Separate speakers
+								</label>
+							</div>
 						</div>
 
 						{#if errorMessage}
@@ -494,24 +493,13 @@
 							</div>
 						{:else}
 							<div class="text-center">
-								<button
-									on:click={useSample}
-									class="inline-flex items-center space-x-2 text-indigo-600 transition-colors duration-200 hover:text-purple-600"
-								>
-									<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
-										/>
-									</svg>
-									<span>Try with sample audio</span>
-								</button>
+								<!-- Sample audio option removed -->
 							</div>
 						{/if}
 					</div>
 				</div>
+
+				<!-- model dropdown moved above; duplicate removed -->
 			{/if}
 
 			<!-- Transcript Display -->
@@ -558,19 +546,6 @@
 	</main>
 
 	<footer class="relative z-10 mt-auto border-t border-indigo-200 bg-white/80 backdrop-blur-sm">
-		<div class="container mx-auto px-4 py-4">
-			<div class="text-center text-slate-500">
-				<p class="text-sm">
-					by
-					<a
-						href="https://mikeesto.com"
-						class="font-medium text-indigo-600 transition-colors duration-200 hover:text-purple-600"
-					>
-						@mikeesto
-					</a>
-				</p>
-				<p class="mt-1 text-sm">Suggestions or feedback? I'd love to hear from you.</p>
-			</div>
-		</div>
+		<div class="container mx-auto px-4 py-4" />
 	</footer>
 </div>

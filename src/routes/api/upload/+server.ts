@@ -103,10 +103,19 @@ export async function POST(event) {
 
 	let fileUploadPromise: Promise<void> | null = null;
 
+	let model = 'gemini-3-flash-preview';
+	let separateSpeakers = 'true';
+
 	const parsePromise = new Promise<void>((resolve, reject) => {
 		busboy.on('field', (fieldname, value) => {
 			if (fieldname === 'language') {
 				language = value || 'English';
+			}
+			if (fieldname === 'model') {
+				model = value || model;
+			}
+			if (fieldname === 'separateSpeakers') {
+				separateSpeakers = value || 'true';
 			}
 		});
 
@@ -227,10 +236,10 @@ export async function POST(event) {
 
 		let result;
 		try {
-			console.log('Attempting transcription with gemini-2.5-flash');
+			console.log(`Attempting transcription with model: ${model}`);
 			result = await generateTranscriptWithModel(
 				ai,
-				'gemini-2.5-flash',
+				model,
 				uploadedFile.uri,
 				uploadedFileMime,
 				language
@@ -243,7 +252,7 @@ export async function POST(event) {
 					error.message.includes('503'))
 			) {
 				console.warn(
-					'Primary model unavailable or rate limited, falling back to gemini-2.5-flash-lite-preview'
+					`Requested model ${model} unavailable or rate limited, falling back to gemini-2.5-flash-lite-preview`
 				);
 				result = await generateTranscriptWithModel(
 					ai,
