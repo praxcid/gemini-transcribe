@@ -176,22 +176,6 @@
 		a.click();
 	}
 
-	async function downloadSRT() {
-		const response = await fetch('/api/srt', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ transcript: transcriptArray })
-		});
-
-		const blob = await response.blob();
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'transcript.srt';
-		a.click();
-	}
 
 	function reset() {
 		selectedFile = null;
@@ -311,23 +295,6 @@
 									<br />
 									(no timestamps)
 								</span>
-							</div>
-						</button>
-
-						<button
-							on:click={downloadSRT}
-							class="group relative transform overflow-hidden rounded-lg bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4 font-semibold text-white shadow-lg shadow-orange-500/25 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-orange-500/40"
-						>
-							<div class="relative flex items-center justify-center space-x-2">
-								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-									/>
-								</svg>
-								<span>Download SRT</span>
 							</div>
 						</button>
 					</div>
